@@ -74,8 +74,7 @@ func PrintCyan(text string) {
 // printStats pretty prints statistics as yellow text until the colon.
 func PrintStats(text string) {
 	splitText := strings.Split(text, ":")
-	PrintYellow(splitText[0] + ":")
-	fmt.Print(splitText[1])
+	PrintYellow(splitText[0] + ":" + splitText[1])
 }
 
 // printHeader prints a yellow star and the rest in white.
@@ -83,5 +82,6 @@ func PrintHeader(text string) {
 	PrintStars()
 	PrintYellow("*")
 	PrintYellow("* " + text)
-	PrintYellow("*\n")
+	PrintYellow("*")
+	fmt.Println()
 }
