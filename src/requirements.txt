@@ -1,4 +1,0 @@
-PyPDF2
-googlemaps
-python-dotenv
-colorama
