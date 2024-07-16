@@ -1,19 +1,9 @@
-## Installation Instructions:
+## Installation
 
-1. Download and extract the project files to a folder on your computer.
+1. This project only needs a .env file with the secrets.
 
-2. Open a terminal or command prompt and navigate to the project folder.
+## Usage Instructions
 
-3. Run the setup script:
+1. Drag a cutsheet onto "run_script.bat" for Windows (mac_script.sh for Mac)
 
-   - On Unix-based systems (Linux, macOS):
-     chmod +x setup.sh
-     ./setup.sh
-
-   - On Windows:
-     setup.bat
-
-4. You can now run the script by dragging a PDF file onto it or using the command:
-   python main.py path_to_your_pdf_file.pdf
-
-Note: The setup process may take some time, especially on Unix systems where Python is compiled from source. Make sure to set up your Google Maps API key in a .env file before running the script.
+2. Follow the prompts. You can press ENTER to quickly use suggestions.
