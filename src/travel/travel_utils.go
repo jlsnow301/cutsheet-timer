@@ -5,51 +5,35 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/jlsnow301/cutsheet-timer/input"
 	"github.com/jlsnow301/cutsheet-timer/utils"
 	"googlemaps.github.io/maps"
 )
 
-// getEventTime gets the event time as a time.Time object.
-func GetEventTime(eventTime string) (*time.Time, error) {
-	if eventTime == "" {
-		color.Red("No event time provided.")
-		eventTime = input.PromptForEventTime()
-	}
-
-	// Convert eventTime to uppercase to handle lowercase am/pm
-	eventTime = strings.ToUpper(eventTime)
-
-	parsedTime, err := time.Parse("03:04 PM", eventTime)
-	if err != nil {
-		color.Red(fmt.Sprintf("Invalid event time: %s. Please re-enter.", eventTime))
-		eventTime = input.PromptForEventTime()
-		// Ensure the re-entered time is also converted to uppercase
-		eventTime = strings.ToUpper(eventTime)
-		parsedTime, err = time.Parse("03:04 PM", eventTime)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &parsedTime, nil
-}
-
 // getDirections fetches directions using Google Maps API.
-func getDirections(origin, destination string) *maps.Route {
+func getDirections(origin, destination string, event *time.Time) *maps.Route {
 	client, err := maps.NewClient(maps.WithAPIKey(os.Getenv("GOOGLE_MAPS_API_KEY")))
 	if err != nil {
 		color.Red(fmt.Sprintf("Error creating Google Maps client: %v", err))
 		return nil
 	}
 
+	// If the time is in the past, just say "now"
+	var eventTime string
+	if event.Before(time.Now()) {
+		eventTime = "now"
+	} else {
+		eventTime = strconv.FormatInt(event.Unix(), 10)
+	}
+
 	request := &maps.DirectionsRequest{
 		Origin:        origin,
 		Destination:   destination,
-		DepartureTime: "now",
+		DepartureTime: eventTime,
 	}
 
 	routes, _, err := client.Directions(context.Background(), request)
@@ -78,15 +62,39 @@ func parseDurationAndDistance(directionsResult *maps.Route) (int, string) {
 	return duration, distanceText
 }
 
+func getDoubleDistance(distanceText string) (string, error) {
+	// Split the miles off the end of the string
+	splitText := strings.SplitN(distanceText, " ", 2)
+	if len(splitText) < 2 {
+		return "", errors.New("no distance found")
+	}
+
+	distance, err := strconv.ParseFloat(splitText[0], 64)
+	if err != nil {
+		return "", err
+	}
+
+	double := 2.0
+	// Multiply by 2 for round trips
+	distance = distance * double
+
+	return fmt.Sprintf("%.2f %s", distance, splitText[1]), nil
+}
+
 // GetBaseTravelTime gets the base travel time based on the origin and destination.
-func GetBaseTravelTime(origin, destination string) (int, error) {
-	directionsResult := getDirections(origin, destination)
+func GetBaseTravelTime(origin, destination string, event *time.Time) (int, error) {
+	directionsResult := getDirections(origin, destination, event)
 	durationMins, distanceText := parseDurationAndDistance(directionsResult)
 	if durationMins == 0 || distanceText == "" {
 		return 0, errors.New("no directions found")
 	}
 
-	utils.PrintStats(fmt.Sprintf("Total roundtrip mileage: %s\n", distanceText))
+	roundTripMiles, err := getDoubleDistance(distanceText)
+	if err != nil {
+		return 0, err
+	}
+
+	utils.PrintStats(fmt.Sprintf("Total roundtrip mileage: %s\n", roundTripMiles))
 
 	return durationMins, nil
 }

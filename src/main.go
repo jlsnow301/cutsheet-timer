@@ -13,6 +13,7 @@ import (
 	"github.com/jlsnow301/cutsheet-timer/header"
 	"github.com/jlsnow301/cutsheet-timer/leave"
 	"github.com/jlsnow301/cutsheet-timer/prep"
+	timeutils "github.com/jlsnow301/cutsheet-timer/time"
 	"github.com/jlsnow301/cutsheet-timer/travel"
 	"github.com/jlsnow301/cutsheet-timer/utils"
 )
@@ -71,15 +72,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	travelTime, err := travel.GetBaseTravelTime(originAddress, headerInfo.Destination)
+	eventTime, err := timeutils.GetEventTime(headerInfo.EventDate, headerInfo.EventTime)
 	if err != nil {
-		utils.PrintRed(fmt.Sprintf("Unable to calculate travel time: %v", err))
+		utils.PrintRed("Invalid event time. Please use HH:MM AM/PM.")
 		os.Exit(1)
 	}
 
-	eventTime, err := travel.GetEventTime(headerInfo.EventTime)
+	travelTime, err := travel.GetBaseTravelTime(originAddress, headerInfo.Destination, eventTime)
 	if err != nil {
-		utils.PrintRed("Invalid event time. Please use HH:MM AM/PM.")
+		utils.PrintRed(fmt.Sprintf("Unable to calculate travel time: %v", err))
 		os.Exit(1)
 	}
 
@@ -92,4 +93,6 @@ func main() {
 	fmt.Printf("Ready by: %s\n", readyByTime.Format("03:04 PM"))
 	fmt.Printf("Leave by: %s\n", leaveTime.Format("03:04 PM"))
 	fmt.Printf("Event time: %s\n", eventTime.Format("03:04 PM"))
+	fmt.Println()
+	fmt.Println()
 }

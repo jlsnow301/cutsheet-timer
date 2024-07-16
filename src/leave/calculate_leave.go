@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/jlsnow301/cutsheet-timer/input"
 	"github.com/jlsnow301/cutsheet-timer/utils"
 )
@@ -11,7 +12,7 @@ import (
 // HandleRush adds additional time for rush hour to the leave time.
 func handleRush(leaveTime time.Time) time.Time {
 	utils.PrintCyan("\nThis order is during rush hour. An additional 15 minutes is suggested.")
-	additionalMinutes := input.GetUserInput("extra rush hour", 15)
+	additionalMinutes := input.GetUserInput(15, "")
 	return leaveTime.Add(-time.Minute * time.Duration(additionalMinutes))
 }
 
@@ -20,19 +21,23 @@ func handleSuite(leaveTime time.Time, suiteInfo string) time.Time {
 	utils.PrintCyan("\nThis order appears to be for a suite:")
 	fmt.Println(suiteInfo)
 	fmt.Println("\nAn additional 10 minutes is suggested to park and navigate the building.")
-	additionalMinutes := input.GetUserInput("extra building traversal", 10)
+	additionalMinutes := input.GetUserInput(10, "")
 	return leaveTime.Add(-time.Minute * time.Duration(additionalMinutes))
 }
 
 // CalculateLeaveTime calculates the leave time based on the event time, travel time, and whether the order is for a suite.
 func CalculateLeaveTime(eventTime *time.Time, travelTime int, isBoxes bool, suiteInfo string) time.Time {
 	baseSetup := 30
+
+	boxText := ""
 	if isBoxes {
+		cyan := color.New(color.FgCyan).SprintFunc()
+		boxText = cyan(" (reduced for box lunch)")
 		baseSetup = 15
 	}
 
 	utils.PrintStats(fmt.Sprintf("Base travel time: %d minutes", travelTime))
-	utils.PrintStats(fmt.Sprintf("Base setup time: %d minutes", baseSetup))
+	utils.PrintStats(fmt.Sprintf("Base setup time: %d minutes%s", baseSetup, boxText))
 
 	leaveTime := eventTime.Add(-time.Minute * time.Duration(baseSetup+travelTime))
 
@@ -51,7 +56,7 @@ func CalculateLeaveTime(eventTime *time.Time, travelTime int, isBoxes bool, suit
 	suggestedMinutes := int(eventTime.Sub(leaveTime).Minutes())
 	utils.PrintStats(fmt.Sprintf("\nSuggested setup and travel time: %d minutes (rounded).", suggestedMinutes))
 
-	userTime := input.GetUserInput("travel and setup", suggestedMinutes)
+	userTime := input.GetUserInput(suggestedMinutes, "Leave")
 	adjustment := suggestedMinutes - userTime
 	leaveTime = leaveTime.Add(time.Minute * time.Duration(adjustment))
 

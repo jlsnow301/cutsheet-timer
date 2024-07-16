@@ -13,29 +13,52 @@ import (
 )
 
 // get_user_input prompts the user to input a valid number of minutes.
-func GetUserInput(reason string, default_minutes int) int {
+func GetUserInput(defaultMinutes int, reason string) int {
 	blue := color.New(color.FgBlue).SprintFunc()
 
-	fmt.Printf("Enter a different number or press %s to add suggested %d minutes.\n", blue("ENTER"), default_minutes)
+	fmt.Printf("Enter a different number or press %s to add suggested %d minutes.\n", blue("ENTER"), defaultMinutes)
 	fmt.Println()
-	fmt.Printf("Set %s time in minutes: ", reason)
+
+	var lowerReason string
+	if reason != "" {
+		lowerReason = strings.ToLower(reason)
+	} else {
+		lowerReason = "any additional"
+	}
+
+	fmt.Printf("Set %s time in minutes: ", lowerReason)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	if !scanner.Scan() {
 		return 0
 	}
 
+	var outMsg string
+
 	user_input := scanner.Text()
 	if user_input == "" {
-		utils.PrintGreen(fmt.Sprintf("%d minutes added.", default_minutes))
-		return default_minutes
+		if reason != "" {
+			outMsg = fmt.Sprintf("%s set to %d minutes.", reason, defaultMinutes)
+		} else {
+			outMsg = fmt.Sprintf("%d minutes added.", defaultMinutes)
+		}
+
+		utils.PrintGreen(outMsg)
+		return defaultMinutes
 	}
 	minutes, err := strconv.Atoi(user_input)
 	if err != nil {
 		utils.PrintRed("Invalid input. No additional time added.")
 		return 0
 	}
-	utils.PrintGreen(fmt.Sprintf("\n%d minutes added.", minutes))
+
+	if reason != "" {
+		outMsg = fmt.Sprintf("%s set to %d minutes.", reason, minutes)
+	} else {
+		outMsg = fmt.Sprintf("%d minutes added.", minutes)
+	}
+
+	utils.PrintGreen(outMsg)
 	return minutes
 
 }
@@ -54,16 +77,22 @@ func ConfirmBoxLunch() bool {
 	return false
 }
 
-// prompt_for_event_time prompts the user to input a valid event time.
 func PromptForEventTime() string {
 	for {
 		fmt.Print("Please enter the event time (HH:MM AM/PM): ")
 		scanner := bufio.NewScanner(os.Stdin)
 		if scanner.Scan() {
-			event_time := scanner.Text()
-			_, err := time.Parse("03:04 PM", event_time)
-			if err == nil {
-				return event_time
+			eventTime := scanner.Text()
+
+			// Convert AM/PM to uppercase for parsing
+			upperEventTime := strings.ToUpper(eventTime)
+
+			// Try parsing with both "03:04 PM" and "3:04 PM" formats
+			_, err1 := time.Parse("03:04 PM", upperEventTime)
+			_, err2 := time.Parse("3:04 PM", upperEventTime)
+
+			if err1 == nil || err2 == nil {
+				return eventTime // Return the original input
 			}
 			utils.PrintRed("Invalid format. Please use HH:MM AM/PM.")
 		}

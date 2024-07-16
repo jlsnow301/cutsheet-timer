@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 
+	"github.com/fatih/color"
 	"github.com/jlsnow301/cutsheet-timer/input"
 	"github.com/jlsnow301/cutsheet-timer/utils"
 )
@@ -47,11 +48,12 @@ func CalculateAndConfirmPrepTime(size string, hasBoxes bool) (int, bool) {
 
 	boxLunchText := ""
 	if isBoxes {
-		boxLunchText = "(reduced for box lunch)"
+		cyan := color.New(color.FgCyan).SprintFunc()
+		boxLunchText = cyan(" (reduced for box lunch)")
 	}
-	utils.PrintStats(fmt.Sprintf("\nSuggested prep time: %d minutes (rounded). %s", prepTime, boxLunchText))
+	utils.PrintStats(fmt.Sprintf("\nSuggested prep time: %d minutes (rounded)%s.", prepTime, boxLunchText))
 
-	finalPrepTime := input.GetUserInput("prep", prepTime)
+	finalPrepTime := input.GetUserInput(prepTime, "Prep")
 
 	return finalPrepTime, isBoxes
 }

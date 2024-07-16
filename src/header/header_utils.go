@@ -3,6 +3,7 @@ package header
 import (
 	"regexp"
 	"strings"
+	"time"
 )
 
 type HeaderInfo struct {
@@ -11,6 +12,40 @@ type HeaderInfo struct {
 	Size        string
 	EventTime   string
 	SuiteInfo   string
+	EventDate   time.Time
+}
+
+func hasDatePrefix(line string) bool {
+	days := []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
+	lowerLine := strings.ToLower(line)
+
+	for _, day := range days {
+		if strings.HasPrefix(lowerLine, day) {
+			return true
+		}
+	}
+
+	return false
+
+}
+
+func splitAfterColon(line string) string {
+	// Split after the first colon
+	split := strings.SplitN(line, ":", 2)
+	if len(split) > 1 {
+		return strings.TrimSpace(split[1])
+	}
+	return ""
+}
+
+func getSuiteInfo(line string) string {
+	re := regexp.MustCompile(`(?i)(suite\s*\S+|#\d{3})`)
+	match := re.FindString(line)
+	if match == "" {
+		return ""
+	}
+
+	return strings.TrimSpace(line)
 }
 
 func normalizeAddress(address string) string {
@@ -47,61 +82,61 @@ func normalizeAddress(address string) string {
 
 func ParseHeaderInfo(content []string) HeaderInfo {
 	info := HeaderInfo{}
+	addressParts := []string{}
 
-	collectingAddress := false
-	var addressParts []string
+	matchers := map[string]func(string){
+		"Fremont":     func(s string) { info.Origin = s },
+		"Eastlake":    func(s string) { info.Origin = s },
+		"Start Time:": func(s string) { info.EventTime = splitAfterColon(s) },
+		"Site Address:": func(s string) {
+			siteAddress := splitAfterColon(s)
+			addressParts = append(addressParts, siteAddress)
+			if suite := getSuiteInfo(siteAddress); suite != "" {
+				info.SuiteInfo = strings.TrimSpace(suite)
+			}
+		},
+		"Site Name:": func(s string) {
+			siteName := splitAfterColon(s)
+			if suite := getSuiteInfo(siteName); suite != "" {
+				info.SuiteInfo = strings.TrimSpace(suite)
+			}
+		},
+		"Headcount:": func(s string) {
+			info.Size = splitAfterColon(s)
+			if len(addressParts) > 0 {
+				info.Destination = normalizeAddress(strings.Join(addressParts, ", "))
+			}
+			addressParts = nil // Clear address parts after setting destination
+		},
+	}
 
 	for _, line := range content {
 		line = strings.TrimSpace(line)
 
-		if info.Origin == "" && (line == "Fremont" || line == "Eastlake") {
-			info.Origin = line
-		}
-
-		if info.EventTime == "" && strings.HasPrefix(line, "Start Time:") {
-			info.EventTime = strings.TrimSpace(strings.SplitN(line, "Start Time:", 2)[1])
-		}
-
-		if collectingAddress {
-			if strings.Contains(line, "Headcount:") {
-				collectingAddress = false
-				info.Destination = normalizeAddress(strings.Join(addressParts, ", "))
-			} else if line != "" {
-				addressParts = append(addressParts, line)
+		if info.EventDate.IsZero() && hasDatePrefix(line) {
+			// Check for date in format "Day, MM/DD/YYYY"
+			if date, err := time.Parse("Monday, 1/2/2006", line); err == nil {
+				info.EventDate = date
+				continue
 			}
 		}
 
-		if info.Destination == "" {
-			match := regexp.MustCompile(`Site Address:\s*(.*)`).FindStringSubmatch(line)
-			if match != nil {
-				addressParts = []string{match[1]}
-				collectingAddress = true
-				if strings.Contains(strings.ToLower(match[1]), "suite") {
-					siteName := strings.SplitN(line, "Site Name:", 2)[1]
-					info.SuiteInfo = strings.TrimSpace(siteName)
-				}
+		matched := false
+		for prefix, handler := range matchers {
+			if strings.HasPrefix(line, prefix) {
+				handler(line)
+				matched = true
+				break
 			}
 		}
 
-		if strings.HasPrefix(line, "Site Name:") && strings.Contains(strings.ToLower(line), "suite") {
-			siteName := strings.SplitN(line, "Site Name:", 2)[1]
-			info.SuiteInfo = strings.TrimSpace(siteName)
-		}
-
-		if info.Size == "" {
-			match := regexp.MustCompile(`Headcount:\s*(\d+)`).FindStringSubmatch(line)
-			if match != nil {
-				info.Size = match[1]
-				collectingAddress = false
-				if len(addressParts) > 0 {
-					info.Destination = normalizeAddress(strings.Join(addressParts, ", "))
-				}
-			}
+		if !matched && info.Destination == "" && len(addressParts) > 0 && line != "" {
+			addressParts = append(addressParts, line)
 		}
 	}
 
 	// In case the address collection wasn't terminated by a Headcount line
-	if collectingAddress && len(addressParts) > 0 {
+	if info.Destination == "" && len(addressParts) > 0 {
 		info.Destination = normalizeAddress(strings.Join(addressParts, ", "))
 	}
 
