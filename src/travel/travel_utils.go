@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/jlsnow301/cutsheet-timer/input"
+	"github.com/jlsnow301/cutsheet-timer/utils"
 	"googlemaps.github.io/maps"
 )
 
@@ -21,10 +21,15 @@ func GetEventTime(eventTime string) (*time.Time, error) {
 		eventTime = input.PromptForEventTime()
 	}
 
+	// Convert eventTime to uppercase to handle lowercase am/pm
+	eventTime = strings.ToUpper(eventTime)
+
 	parsedTime, err := time.Parse("03:04 PM", eventTime)
 	if err != nil {
 		color.Red(fmt.Sprintf("Invalid event time: %s. Please re-enter.", eventTime))
 		eventTime = input.PromptForEventTime()
+		// Ensure the re-entered time is also converted to uppercase
+		eventTime = strings.ToUpper(eventTime)
 		parsedTime, err = time.Parse("03:04 PM", eventTime)
 		if err != nil {
 			return nil, err
@@ -60,58 +65,28 @@ func getDirections(origin, destination string) *maps.Route {
 }
 
 // parseDurationAndDistance extracts duration and distance from the directions result.
-func parseDurationAndDistance(directionsResult *maps.Route) (string, string) {
+func parseDurationAndDistance(directionsResult *maps.Route) (int, string) {
 	if directionsResult == nil {
 		color.Red("No directions found.")
-		return "", ""
+		return 0, ""
 	}
 
 	leg := directionsResult.Legs[0]
-	durationText := leg.Duration.String()
+	duration := int(leg.DurationInTraffic.Minutes())
 	distanceText := leg.Distance.HumanReadable
 
-	return durationText, distanceText
-}
-
-// extractTimeFromText extracts total time in minutes from duration text.
-func extractTimeFromText(durationText string) int {
-	hours, minutes := 0, 0
-	hoursMatch := regexp.MustCompile(`(\d+)\s*hour`).FindStringSubmatch(durationText)
-	if len(hoursMatch) > 1 {
-		hours, _ = strconv.Atoi(hoursMatch[1])
-	}
-	minutesMatch := regexp.MustCompile(`(\d+)\s*min`).FindStringSubmatch(durationText)
-	if len(minutesMatch) > 1 {
-		minutes, _ = strconv.Atoi(minutesMatch[1])
-	}
-	return hours*60 + minutes
-}
-
-// extractDistanceAndUnit extracts distance and unit from distance text.
-func extractDistanceAndUnit(distanceText string) (float64, string) {
-	distanceMatch := regexp.MustCompile(`(\d+(?:\.\d+)?)\s*(km|mi)`).FindStringSubmatch(distanceText)
-	if len(distanceMatch) > 2 {
-		distance, _ := strconv.ParseFloat(distanceMatch[1], 64)
-		unit := distanceMatch[2]
-		return distance, unit
-	}
-	return 0, ""
+	return duration, distanceText
 }
 
 // GetBaseTravelTime gets the base travel time based on the origin and destination.
-func GetBaseTravelTime(origin, destination string) (*int, error) {
+func GetBaseTravelTime(origin, destination string) (int, error) {
 	directionsResult := getDirections(origin, destination)
-	durationText, distanceText := parseDurationAndDistance(directionsResult)
-	if durationText == "" || distanceText == "" {
-		return nil, errors.New("no directions found")
+	durationMins, distanceText := parseDurationAndDistance(directionsResult)
+	if durationMins == 0 || distanceText == "" {
+		return 0, errors.New("no directions found")
 	}
 
-	totalMinutes := extractTimeFromText(durationText)
-	distance, unit := extractDistanceAndUnit(distanceText)
-	if distance > 0 && unit != "" {
-		roundtripDistance := distance * 2
-		color.Green(fmt.Sprintf("Total roundtrip mileage: %.2f %s\n", roundtripDistance, unit))
-	}
+	utils.PrintStats(fmt.Sprintf("Total roundtrip mileage: %s\n", distanceText))
 
-	return &totalMinutes, nil
+	return durationMins, nil
 }

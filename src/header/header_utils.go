@@ -13,19 +13,45 @@ type HeaderInfo struct {
 	SuiteInfo   string
 }
 
-// normalizeAddress normalizes an address by adding a space before the last 5 digits if not present.
 func normalizeAddress(address string) string {
-	re := regexp.MustCompile(`(\D)(\d{5})$`)
-	return re.ReplaceAllString(address, `$1 $2`)
+	// Remove any occurrence of "Headcount" and everything after it
+	headcountIndex := strings.Index(strings.ToLower(address), "headcount")
+	if headcountIndex != -1 {
+		address = address[:headcountIndex]
+	}
+
+	// Trim any trailing commas and spaces
+	address = strings.TrimRight(address, ", ")
+
+	// Add a space before any capitalized letter unless one already exists
+	re := regexp.MustCompile(`([a-z])([A-Z])`)
+	address = re.ReplaceAllString(address, "$1 $2")
+
+	// Ensure there's a space before the ZIP code if it exists
+	zipRe := regexp.MustCompile(`(\D)(\d{5})$`)
+	address = zipRe.ReplaceAllString(address, "$1 $2")
+
+	// Check if the address contains a ZIP code
+	hasZip := regexp.MustCompile(`\d{5}$`).MatchString(address)
+
+	// Check if the address contains "Seattle" (case-insensitive)
+	hasSeattle := strings.Contains(strings.ToLower(address), "seattle")
+
+	// If there's no ZIP code and no "Seattle", add "Seattle"
+	if !hasZip && !hasSeattle {
+		address += " Seattle"
+	}
+
+	return address
 }
 
-// parseHeaderInfo parses header information from the given text and returns a HeaderInfo struct.
-func ParseHeaderInfo(text string) HeaderInfo {
+func ParseHeaderInfo(content []string) HeaderInfo {
 	info := HeaderInfo{}
-	lines := strings.Split(text, "\n")
-	collectingAddress := false
 
-	for _, line := range lines {
+	collectingAddress := false
+	var addressParts []string
+
+	for _, line := range content {
 		line = strings.TrimSpace(line)
 
 		if info.Origin == "" && (line == "Fremont" || line == "Eastlake") {
@@ -37,25 +63,20 @@ func ParseHeaderInfo(text string) HeaderInfo {
 		}
 
 		if collectingAddress {
-			if line != "" && !strings.HasPrefix(line, "Headcount:") {
-				normalizedAddress := normalizeAddress(line)
-				if info.Destination != "" {
-					info.Destination += ", " + normalizedAddress
-				} else {
-					info.Destination = normalizedAddress
-				}
-			} else {
+			if strings.Contains(line, "Headcount:") {
 				collectingAddress = false
+				info.Destination = normalizeAddress(strings.Join(addressParts, ", "))
+			} else if line != "" {
+				addressParts = append(addressParts, line)
 			}
 		}
 
 		if info.Destination == "" {
 			match := regexp.MustCompile(`Site Address:\s*(.*)`).FindStringSubmatch(line)
 			if match != nil {
-				normalizedAddress := normalizeAddress(match[1])
-				info.Destination = normalizedAddress
+				addressParts = []string{match[1]}
 				collectingAddress = true
-				if strings.Contains(strings.ToLower(normalizedAddress), "suite") {
+				if strings.Contains(strings.ToLower(match[1]), "suite") {
 					siteName := strings.SplitN(line, "Site Name:", 2)[1]
 					info.SuiteInfo = strings.TrimSpace(siteName)
 				}
@@ -72,8 +93,16 @@ func ParseHeaderInfo(text string) HeaderInfo {
 			if match != nil {
 				info.Size = match[1]
 				collectingAddress = false
+				if len(addressParts) > 0 {
+					info.Destination = normalizeAddress(strings.Join(addressParts, ", "))
+				}
 			}
 		}
+	}
+
+	// In case the address collection wasn't terminated by a Headcount line
+	if collectingAddress && len(addressParts) > 0 {
+		info.Destination = normalizeAddress(strings.Join(addressParts, ", "))
 	}
 
 	return info

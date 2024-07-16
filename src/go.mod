@@ -3,9 +3,9 @@ module github.com/jlsnow301/cutsheet-timer
 go 1.22.4
 
 require (
+	github.com/dslipak/pdf v0.0.2
 	github.com/fatih/color v1.17.0
 	github.com/joho/godotenv v1.5.1
-	github.com/ledongthuc/pdf v0.0.0-20240201131950-da5b75280b06
 	googlemaps.github.io/maps v1.7.0
 )
 

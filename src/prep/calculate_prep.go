@@ -29,7 +29,7 @@ func CalculateAndConfirmPrepTime(size string, hasBoxes bool) (int, bool) {
 	} else {
 		var err error
 		sizeInt, err = strconv.Atoi(size)
-		if err != nil || sizeInt < 15 {
+		if err != nil {
 			utils.PrintRed(fmt.Sprintf("Invalid size value: %s. Using default size of 15.", size))
 			sizeInt = 15
 		}

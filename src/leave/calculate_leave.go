@@ -17,22 +17,24 @@ func handleRush(leaveTime time.Time) time.Time {
 
 // HandleSuite adds additional time for a suite to the leave time.
 func handleSuite(leaveTime time.Time, suiteInfo string) time.Time {
-	utils.PrintCyan(fmt.Sprintf("\nThis order appears to be for a suite:\n%s", suiteInfo))
+	utils.PrintCyan("\nThis order appears to be for a suite:")
+	fmt.Println(suiteInfo)
 	fmt.Println("\nAn additional 10 minutes is suggested to park and navigate the building.")
 	additionalMinutes := input.GetUserInput("extra building traversal", 10)
 	return leaveTime.Add(-time.Minute * time.Duration(additionalMinutes))
 }
 
 // CalculateLeaveTime calculates the leave time based on the event time, travel time, and whether the order is for a suite.
-func CalculateLeaveTime(eventTime *time.Time, travelTime *int, isBoxes bool, suiteInfo string) time.Time {
+func CalculateLeaveTime(eventTime *time.Time, travelTime int, isBoxes bool, suiteInfo string) time.Time {
 	baseSetup := 30
 	if isBoxes {
 		baseSetup = 15
 	}
+
 	utils.PrintStats(fmt.Sprintf("Base travel time: %d minutes", travelTime))
 	utils.PrintStats(fmt.Sprintf("Base setup time: %d minutes", baseSetup))
 
-	leaveTime := eventTime.Add(-time.Minute * time.Duration(baseSetup+*travelTime))
+	leaveTime := eventTime.Add(-time.Minute * time.Duration(baseSetup+travelTime))
 
 	if eventTime.Hour() >= 16 && eventTime.Hour() <= 18 {
 		leaveTime = handleRush(leaveTime)

@@ -8,30 +8,36 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/jlsnow301/cutsheet-timer/utils"
 )
 
 // get_user_input prompts the user to input a valid number of minutes.
 func GetUserInput(reason string, default_minutes int) int {
-	fmt.Printf("Enter a different number or press ENTER to add suggested %d minutes.\n", default_minutes)
+	blue := color.New(color.FgBlue).SprintFunc()
+
+	fmt.Printf("Enter a different number or press %s to add suggested %d minutes.\n", blue("ENTER"), default_minutes)
+	fmt.Println()
 	fmt.Printf("Set %s time in minutes: ", reason)
 
 	scanner := bufio.NewScanner(os.Stdin)
-	if scanner.Scan() {
-		user_input := scanner.Text()
-		if user_input == "" {
-			utils.PrintGreen(fmt.Sprintf("%d minutes added.", default_minutes))
-			return default_minutes
-		}
-		minutes, err := strconv.Atoi(user_input)
-		if err != nil {
-			utils.PrintRed("Invalid input. No additional time added.")
-			return 0
-		}
-		utils.PrintGreen(fmt.Sprintf("\n%d minutes added.", minutes))
-		return minutes
+	if !scanner.Scan() {
+		return 0
 	}
-	return 0
+
+	user_input := scanner.Text()
+	if user_input == "" {
+		utils.PrintGreen(fmt.Sprintf("%d minutes added.", default_minutes))
+		return default_minutes
+	}
+	minutes, err := strconv.Atoi(user_input)
+	if err != nil {
+		utils.PrintRed("Invalid input. No additional time added.")
+		return 0
+	}
+	utils.PrintGreen(fmt.Sprintf("\n%d minutes added.", minutes))
+	return minutes
+
 }
 
 // confirm_box_lunch prompts the user to confirm if the sheet is a box lunch.
