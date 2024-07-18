@@ -7,6 +7,7 @@
 *.dll
 *.so
 *.dylib
+src/cutsheet-timer.mac
 
 # Test binary, built with `go test -c`
 *.test

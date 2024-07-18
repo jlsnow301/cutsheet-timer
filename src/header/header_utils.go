@@ -38,14 +38,11 @@ func splitAfterColon(line string) string {
 	return ""
 }
 
-func getSuiteInfo(line string) string {
-	re := regexp.MustCompile(`(?i)(suite\s*\S+|#\d{3})`)
+func hasSuiteInfo(line string) bool {
+	re := regexp.MustCompile(`(?i)(suite|ste|#)\s*#?\d{3,4}(\s|$)`)
 	match := re.FindString(line)
-	if match == "" {
-		return ""
-	}
 
-	return strings.TrimSpace(line)
+	return match != ""
 }
 
 func normalizeAddress(address string) string {
@@ -91,14 +88,14 @@ func ParseHeaderInfo(content []string) HeaderInfo {
 		"Site Address:": func(s string) {
 			siteAddress := splitAfterColon(s)
 			addressParts = append(addressParts, siteAddress)
-			if suite := getSuiteInfo(siteAddress); suite != "" {
-				info.SuiteInfo = strings.TrimSpace(suite)
+			if hasSuiteInfo(siteAddress) {
+				info.SuiteInfo = siteAddress
 			}
 		},
 		"Site Name:": func(s string) {
 			siteName := splitAfterColon(s)
-			if suite := getSuiteInfo(siteName); suite != "" {
-				info.SuiteInfo = strings.TrimSpace(suite)
+			if hasSuiteInfo(siteName) {
+				info.SuiteInfo = siteName
 			}
 		},
 		"Headcount:": func(s string) {
